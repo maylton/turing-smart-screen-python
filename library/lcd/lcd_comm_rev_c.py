@@ -339,6 +339,18 @@ class LcdCommRevC(LcdComm):
         if image_width != image.size[0] or image_height != image.size[1]:
             image = image.crop((0, 0, image_width, image_height))
 
+        # Keep only the part of the image that is inside the display: partial updates address pixels
+        # line by line, so a bitmap reaching past an edge would wrap around onto the previous/next line.
+        visible_left, visible_top = max(0, -x), max(0, -y)
+        visible_right = min(image.size[0], self.get_width() - x)
+        visible_bottom = min(image.size[1], self.get_height() - y)
+        if visible_right <= visible_left or visible_bottom <= visible_top:
+            return  # Nothing visible
+        if (visible_left, visible_top, visible_right, visible_bottom) != (0, 0, image.size[0], image.size[1]):
+            image = image.crop((visible_left, visible_top, visible_right, visible_bottom))
+            x, y = x + visible_left, y + visible_top
+            image_width, image_height = image.size
+
         assert x <= self.get_width(), 'Image X coordinate must be <= display width'
         assert y <= self.get_height(), 'Image Y coordinate must be <= display height'
         assert image_height > 0, 'Image height must be > 0'
